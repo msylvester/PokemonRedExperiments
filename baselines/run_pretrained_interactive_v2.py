@@ -1,13 +1,14 @@
 from os.path import exists
 from pathlib import Path
 import uuid
-from red_gym_env import RedGymEnv
+from red_gym_env_v2 import RedGymEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common.utils import set_random_seed
 
 # Session path and model file definitions
 sessionPath = '../sesh/session_c0b039c0'
-initial_model_file = 'session_4da05e87_main_good/poke_439746560_steps.zip'  # Initial model file path
+#initial_model_file = 'session_4da05e87_main_good/poke_439746560_steps.zip'  # Initial model file path
+initial_model_file = '../first_v2_session/poke_1310720_steps.zip'  # Initial model file path
 model_paths = {
     'first': 'poke_1310720_steps.zip',
     'second': 'poke_1638400_steps.zip',
@@ -73,7 +74,7 @@ if __name__ == '__main__':
 
     env_config = {
         'headless': False, 'save_final_state': True, 'early_stop': False,
-        'action_freq': 24, 'init_state': './state_step_9095.state', 'max_steps': ep_length, 
+        'action_freq': 24, 'init_state': '../state_step_9095.state', 'max_steps': ep_length, 
         'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
         'gb_path': '../PokemonRed.gb', 'debug': True, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': True
     }
