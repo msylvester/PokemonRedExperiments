@@ -199,10 +199,11 @@ class RedGymEnv(Env):
         return observation
 
     def step(self, action):
-
+        x,y, z = self.get_game_coords()
+        print(f'the local poisiton is {x} {y} {z} {local_to_global(y, x, z)}')
         if self.save_video and self.step_count == 0:
             self.start_video()
-
+  
         self.run_action_on_emulator(action)
         self.append_agent_stats(action)
 
@@ -226,7 +227,7 @@ class RedGymEnv(Env):
 
         obs = self._get_obs()
 
-        # self.save_and_print_info(step_limit_reached, obs)
+        self.save_and_print_info(step_limit_reached, obs)
 
         # create a map of all event flags set, with names where possible
         #if step_limit_reached:
@@ -248,6 +249,9 @@ class RedGymEnv(Env):
     
     def run_action_on_emulator(self, action):
         # press button then release after some steps
+
+        if action == 7:
+            action = 0
         self.pyboy.send_input(self.valid_actions[action])
         # disable rendering when we don't need it
         if not self.save_video and self.headless:
@@ -345,9 +349,12 @@ class RedGymEnv(Env):
         x_pos, y_pos, map_n = self.get_game_coords()
         coord_string = f"x:{x_pos} y:{y_pos} m:{map_n}"
         self.seen_coords[coord_string] = self.step_count
-
+    
     def get_global_coords(self):
         x_pos, y_pos, map_n = self.get_game_coords()
+        # if self.step_count % 25 == 0:
+        #     print(f'the local is {x_pos} {y_pos} and {map_n}')
+        #     print(f'the global is {local_to_global(y_pos, x_pos, map_n)}')
         return local_to_global(y_pos, x_pos, map_n)
 
     def update_explore_map(self):
@@ -408,7 +415,7 @@ class RedGymEnv(Env):
             for key, val in self.progress_reward.items():
                 prog_string += f" {key}: {val:5.2f}"
             prog_string += f" sum: {self.total_reward:5.2f}"
-            print(f"\r{prog_string}", end="", flush=True)
+            #print(f"\r{prog_string}", end="", flush=True)
 
         if self.step_count % 50 == 0:
             plt.imsave(

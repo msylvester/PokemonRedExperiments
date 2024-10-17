@@ -1,6 +1,9 @@
 # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
 # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
 
+
+# The real map tiles are from 0x9000 to 0x9600.
+
 PARTY_SIZE_ADDRESS = 0xD163
 X_POS_ADDRESS, Y_POS_ADDRESS = 0xD362, 0xD361
 MAP_N_ADDRESS = 0xD35E

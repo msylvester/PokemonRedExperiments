@@ -398,7 +398,7 @@ class RedGymEnv(Env):
             for key, val in self.progress_reward.items():
                 prog_string += f' {key}: {val:5.2f}'
             prog_string += f' sum: {self.total_reward:5.2f}'
-            print(f'\r{prog_string}', end='', flush=True)
+            #print(f'\r{prog_string}', end='', flush=True)
         
         if self.step_count % 50 == 0:
             plt.imsave(

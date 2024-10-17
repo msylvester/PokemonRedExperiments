@@ -1,7 +1,7 @@
 from os.path import exists
 from pathlib import Path
 import uuid
-from red_gym_env import RedGymEnv
+from red_gym_env_v2 import RedGymEnv
 from stable_baselines3 import A2C, PPO
 from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     env_config = {
                 'headless': False, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
+                'action_freq': 24, 'init_state': '../cave_entrance_6824.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': True
             }
@@ -39,15 +39,15 @@ if __name__ == '__main__':
     env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     #env_checker.check_env(env)
-    file_name = 'session_4da05e87_main_good/poke_439746560_steps'
-    
+    #file_name = 'session_4da05e87_main_good/poke_439746560_steps'
+    file_name = 'session_b68e9ac5/poke_3932160_steps.zip'
     print('\nloading checkpoint')
     model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})
         
     #keyboard.on_press_key("M", toggle_agent)
     obs, info = env.reset()
     while True:
-        action = 7 # pass action
+        action = 5 # pass action
         try:
             with open("agent_enabled.txt", "r") as f:
                 agent_enabled = f.readlines()[0].startswith("yes")
