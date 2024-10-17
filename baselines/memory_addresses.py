@@ -1,13 +1,15 @@
 # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
 # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
 
-
+#CCD5 - Number of turns in current battle
 # The real map tiles are from 0x9000 to 0x9600.
 
 PARTY_SIZE_ADDRESS = 0xD163
 X_POS_ADDRESS, Y_POS_ADDRESS = 0xD362, 0xD361
 MAP_N_ADDRESS = 0xD35E
 BADGE_COUNT_ADDRESS = 0xD356
+
+TYPE_OF_BATTLE = 0xD057
 
 LEVELS_ADDRESSES = [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]
 PARTY_ADDRESSES = [0xD164, 0xD165, 0xD166, 0xD167, 0xD168, 0xD169]

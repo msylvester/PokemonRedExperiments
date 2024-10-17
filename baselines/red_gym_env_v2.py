@@ -68,7 +68,13 @@ class RedGymEnv(Env):
             WindowEvent.PRESS_BUTTON_B,
             WindowEvent.PRESS_BUTTON_START,
         ]
+        # if self.extra_buttons:
+        #     self.valid_actions.extend([
+        #         WindowEvent.PRESS_BUTTON_START,
+        #         WindowEvent.PASS
+        #     ])
 
+            
         self.release_actions = [
             WindowEvent.RELEASE_ARROW_DOWN,
             WindowEvent.RELEASE_ARROW_LEFT,
@@ -201,13 +207,15 @@ class RedGymEnv(Env):
     def step(self, action):
         x,y, z = self.get_game_coords()
         print(f'the local poisiton is {x} {y} {z} {local_to_global(y, x, z)}')
+        print(f' the value at memory address d057:   {self.read_m(0xD057)}')
         if self.save_video and self.step_count == 0:
             self.start_video()
-  
-        self.run_action_on_emulator(action)
-        self.append_agent_stats(action)
-
-        self.update_recent_actions(action)
+        
+        # Check for action -1, only run if action is valid
+        if action != -1:
+            self.run_action_on_emulator(action)
+            self.append_agent_stats(action)
+            self.update_recent_actions(action)
 
         self.update_seen_coords()
 
@@ -248,27 +256,55 @@ class RedGymEnv(Env):
         return obs, new_reward, False, step_limit_reached, {}
     
     def run_action_on_emulator(self, action):
-        # press button then release after some steps
-
-        if action == 7:
-            action = 0
-        self.pyboy.send_input(self.valid_actions[action])
-        # disable rendering when we don't need it
-        if not self.save_video and self.headless:
-            self.pyboy._rendering(False)
-        for i in range(self.act_freq):
-            # release action, so they are stateless
-            if i == 8:
-                # release button
-                self.pyboy.send_input(self.release_actions[action])
-            if self.save_video and not self.fast_video:
+        # Only proceed if the action is not -1
+        if action != -1:
+            # press button then release after some steps
+            self.pyboy.send_input(self.valid_actions[action])
+            
+            # disable rendering when we don't need it
+            if not self.save_video and self.headless:
+                self.pyboy._rendering(False)
+                
+            for i in range(self.act_freq):
+                # release action, so they are stateless
+                if i == 8:
+                    # release button
+                    self.pyboy.send_input(self.release_actions[action])
+                    
+                if self.save_video and not self.fast_video:
+                    self.add_video_frame()
+                    
+                if i == self.act_freq - 1:
+                    # rendering must be enabled on the tick before frame is needed
+                    self.pyboy._rendering(True)
+                    
+                self.pyboy.tick()
+            
+            if self.save_video and self.fast_video:
                 self.add_video_frame()
-            if i == self.act_freq - 1:
-                # rendering must be enabled on the tick before frame is needed
-                self.pyboy._rendering(True)
-            self.pyboy.tick()
-        if self.save_video and self.fast_video:
-            self.add_video_frame()
+        self.pyboy._rendering(True)
+    
+    # def run_action_on_emulator(self, action):
+    #     # press button then release after some steps
+
+
+    #     self.pyboy.send_input(self.valid_actions[action])
+    #     # disable rendering when we don't need it
+    #     if not self.save_video and self.headless:
+    #         self.pyboy._rendering(False)
+    #     for i in range(self.act_freq):
+    #         # release action, so they are stateless
+    #         if i == 8:
+    #             # release button
+    #             self.pyboy.send_input(self.release_actions[action])
+    #         if self.save_video and not self.fast_video:
+    #             self.add_video_frame()
+    #         if i == self.act_freq - 1:
+    #             # rendering must be enabled on the tick before frame is needed
+    #             self.pyboy._rendering(True)
+    #         self.pyboy.tick()
+    #     if self.save_video and self.fast_video:
+    #         self.add_video_frame()
 
     def append_agent_stats(self, action):
         x_pos, y_pos, map_n = self.get_game_coords()

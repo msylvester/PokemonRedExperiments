@@ -51,7 +51,7 @@ class RedGymEnv(Env):
         self.s_path.mkdir(exist_ok=True)
         self.reset_count = 0
         self.all_runs = []
-
+        self.first = False
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
         self.reward_range = (0, 15000)
