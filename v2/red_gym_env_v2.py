@@ -16,7 +16,7 @@ from pyboy.utils import WindowEvent
 from global_map import local_to_global, GLOBAL_MAP_SHAPE
 
 event_flags_start = 0xD747
-event_flags_end = 0xD7F6 # 0xD761 # 0xD886 temporarily lower event flag range for obs input
+event_flags_end = 0xD87E # expand for SS Anne # old - 0xD7F6 
 museum_ticket = (0xD754, 0)
 
 class RedGymEnv(Env):
@@ -105,17 +105,17 @@ class RedGymEnv(Env):
             }
         )
 
-        head = "headless" if config["headless"] else "SDL2"
+        head = "null" if config["headless"] else "SDL2"
 
         #log_level("ERROR")
         self.pyboy = PyBoy(
             config["gb_path"],
-            debugging=False,
-            disable_input=False,
-            window_type=head,
+            #debugging=False,
+            #disable_input=False,
+            window=head,
         )
 
-        self.screen = self.pyboy.botsupport_manager().screen()
+        #self.screen = self.pyboy.botsupport_manager().screen()
 
         if not config["headless"]:
             self.pyboy.set_emulation_speed(6)
@@ -168,7 +168,7 @@ class RedGymEnv(Env):
         self.seen_coords = {}
 
     def render(self, reduce_res=True):
-        game_pixels_render = self.screen.screen_ndarray()[:,:,0:1]  # (144, 160, 3)
+        game_pixels_render = self.pyboy.screen.ndarray[:,:,0:1]  # (144, 160, 3)
         if reduce_res:
             game_pixels_render = (
                 downscale_local_mean(game_pixels_render, (2,2,1))
@@ -250,22 +250,15 @@ class RedGymEnv(Env):
         # press button then release after some steps
         self.pyboy.send_input(self.valid_actions[action])
         # disable rendering when we don't need it
-        if not self.save_video and self.headless:
-            self.pyboy._rendering(False)
-        for i in range(self.act_freq):
-            # release action, so they are stateless
-            if i == 8:
-                # release button
-                self.pyboy.send_input(self.release_actions[action])
-            if self.save_video and not self.fast_video:
-                self.add_video_frame()
-            if i == self.act_freq - 1:
-                # rendering must be enabled on the tick before frame is needed
-                self.pyboy._rendering(True)
-            self.pyboy.tick()
+        render_screen = self.save_video or not self.headless
+        press_step = 8
+        self.pyboy.tick(press_step, render_screen)
+        self.pyboy.send_input(self.release_actions[action])
+        self.pyboy.tick(self.act_freq - press_step - 1, render_screen)
+        self.pyboy.tick(1, True)
         if self.save_video and self.fast_video:
             self.add_video_frame()
-
+        
     def append_agent_stats(self, action):
         x_pos, y_pos, map_n = self.get_game_coords()
         levels = [
@@ -342,9 +335,24 @@ class RedGymEnv(Env):
         return (self.read_m(0xD362), self.read_m(0xD361), self.read_m(0xD35E))
 
     def update_seen_coords(self):
+        # if not in battle
+        if self.read_m(0xD057) == 0:
+            x_pos, y_pos, map_n = self.get_game_coords()
+            coord_string = f"x:{x_pos} y:{y_pos} m:{map_n}"
+            if coord_string in self.seen_coords.keys():
+                self.seen_coords[coord_string] += 1
+            else:
+                self.seen_coords[coord_string] = 1
+            #self.seen_coords[coord_string] = self.step_count
+
+    def get_current_coord_count_reward(self):
         x_pos, y_pos, map_n = self.get_game_coords()
         coord_string = f"x:{x_pos} y:{y_pos} m:{map_n}"
-        self.seen_coords[coord_string] = self.step_count
+        if coord_string in self.seen_coords.keys():
+            count = self.seen_coords[coord_string]
+        else:
+            count = 0
+        return 0 if count < 300 else 1
 
     def get_global_coords(self):
         x_pos, y_pos, map_n = self.get_game_coords()
@@ -353,7 +361,7 @@ class RedGymEnv(Env):
     def update_explore_map(self):
         c = self.get_global_coords()
         if c[0] >= self.explore_map.shape[0] or c[1] >= self.explore_map.shape[1]:
-            #print(f"coord out of bounds! global: {c} game: {self.get_game_coords()}")
+            print(f"coord out of bounds! global: {c} game: {self.get_game_coords()}")
             pass
         else:
             self.explore_map[c[0], c[1]] = 255
@@ -448,22 +456,9 @@ class RedGymEnv(Env):
             self.model_frame_writer.close()
             self.map_frame_writer.close()
 
-        """
-        if done:
-            self.all_runs.append(self.progress_reward)
-            with open(
-                self.s_path / Path(f"all_runs_{self.instance_id}.json"), "w"
-            ) as f:
-                json.dump(self.all_runs, f)
-            pd.DataFrame(self.agent_stats).to_csv(
-                self.s_path / Path(f"agent_stats_{self.instance_id}.csv.gz"),
-                compression="gzip",
-                mode="a",
-            )
-        """
-
     def read_m(self, addr):
-        return self.pyboy.get_memory_value(addr)
+        #return self.pyboy.get_memory_value(addr)
+        return self.pyboy.memory[addr]
 
     def read_bit(self, addr, bit: int) -> bool:
         # add padding so zero will read '0b100000000' instead of '0b0'
@@ -522,11 +517,12 @@ class RedGymEnv(Env):
         state_scores = {
             "event": self.reward_scale * self.update_max_event_rew() * 4,
             "level": self.reward_scale * self.get_levels_reward(),
-            "heal": self.reward_scale * self.total_healing_rew * 5,
-            "op_lvl": self.reward_scale * self.update_max_op_level() * 0.2,
+            "heal": self.reward_scale * self.total_healing_rew * 30,
+            #"op_lvl": self.reward_scale * self.update_max_op_level() * 0.2,
             "dead": self.reward_scale * self.died_count * -0.1,
-            "badge": self.reward_scale * self.get_badges() * 5,
+            "badge": self.reward_scale * self.get_badges() * 10,
             "explore": self.reward_scale * self.explore_weight * len(self.seen_coords) * 0.1,
+            "stuck": self.reward_scale * self.get_current_coord_count_reward() * -0.05
         }
 
         return state_scores
@@ -554,7 +550,7 @@ class RedGymEnv(Env):
         if cur_health > self.last_health and self.read_m(0xD163) == self.party_size:
             if self.last_health > 0:
                 heal_amount = cur_health - self.last_health
-                self.total_healing_rew += heal_amount
+                self.total_healing_rew += heal_amount * heal_amount
             else:
                 self.died_count += 1
 
