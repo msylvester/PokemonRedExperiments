@@ -1,6 +1,6 @@
 from parentV2 import RedGymEnv
 import numpy as np
-
+from skimage.transform import downscale_local_mean
 event_flags_start = 0xD747
 event_flags_end = 0xD7F6 # 0xD761 # 0xD886 temporarily lower event flag range for obs input
 museum_ticket = (0xD754, 0)
@@ -9,6 +9,14 @@ class CustomRedGymEnv(RedGymEnv):
     def __init__(self, env_conf):
         super().__init__(env_conf)
         # Add any custom initialization code here if needed
+    
+    def render(self, reduce_res=True):
+        game_pixels_render = self.screen.screen_ndarray()[:,:,0:1]  # (144, 160, 3)
+        if reduce_res:
+            game_pixels_render = (
+                downscale_local_mean(game_pixels_render, (2,2,1))
+            ).astype(np.uint8)
+        return game_pixels_render
     
     def _get_obs(self):
         
@@ -32,7 +40,32 @@ class CustomRedGymEnv(RedGymEnv):
         }
 
         return observation
-
+    def append_agent_stats(self, action):
+        x_pos, y_pos, map_n = self.get_game_coords()
+        levels = [
+            self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]
+        ]
+        self.agent_stats.append(
+            {
+                "step": self.step_count,
+                "x": x_pos,
+                "y": y_pos,
+                "map": map_n,
+                "map_location": self.get_map_location(map_n),
+                "max_map_progress": self.max_map_progress,
+                "last_action": action,
+                "pcount": self.read_m(0xD163),
+                "levels": levels,
+                "levels_sum": sum(levels),
+                "ptypes": self.read_party(),
+                "hp": self.read_hp_fraction(),
+                "coord_count": len(self.seen_coords),
+                "deaths": self.died_count,
+                "badge": self.get_badges(),
+                "event": self.progress_reward["event"],
+                "healr": self.total_healing_rew,
+            }
+        )
     def reset(self, seed=None, options={}):
         self.seed = seed
         # restart game, skipping credits
@@ -76,7 +109,14 @@ class CustomRedGymEnv(RedGymEnv):
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
         return self._get_obs(), {}
-  
+    def update_explore_map(self):
+        c = self.get_global_coords()
+        if c[0] >= self.explore_map.shape[0] or c[1] >= self.explore_map.shape[1]:
+            #print(f"coord out of bounds! global: {c} game: {self.get_game_coords()}")
+            pass
+        else:
+            self.explore_map[c[0], c[1]] = 255
+
     def step(self, action):
         if action == 7:
             print(f'action {action}')
@@ -125,7 +165,6 @@ class CustomRedGymEnv(RedGymEnv):
         self.step_count += 1
 
         return obs, new_reward, False, step_limit_reached, {}
-    
     # def _take_action(self, action):
     #     # Custom action handling logic
     #     # Apply the action and return reward, done, and any additional info
