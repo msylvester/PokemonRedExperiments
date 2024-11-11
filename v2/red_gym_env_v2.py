@@ -1,7 +1,7 @@
 import uuid
 import json
 from pathlib import Path
-
+from reward_manager import RewardManager
 import numpy as np
 from skimage.transform import downscale_local_mean
 import matplotlib.pyplot as plt
@@ -48,6 +48,7 @@ class RedGymEnv(Env):
         self.map_frame_writer = None
         self.reset_count = 0
         self.all_runs = []
+        self.reward_manager = RewardManager(self)
 
         self.essential_map_locations = {
             v:i for i,v in enumerate([
@@ -216,8 +217,7 @@ class RedGymEnv(Env):
 
         self.party_size = self.read_m(0xD163)
 
-        new_reward = self.update_reward()
-
+        new_reward = self.reward_manager.compute_reward()
         self.last_health = self.read_hp_fraction()
 
         self.update_map_progress()
