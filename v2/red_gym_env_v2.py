@@ -1,7 +1,12 @@
 import uuid
 import json
 from pathlib import Path
+
+#OOP 
 from reward_manager import RewardManager
+from emulator_manager import EmulatorManager
+
+
 import numpy as np
 from skimage.transform import downscale_local_mean
 import matplotlib.pyplot as plt
@@ -48,7 +53,12 @@ class RedGymEnv(Env):
         self.map_frame_writer = None
         self.reset_count = 0
         self.all_runs = []
+
+        #instantiate the instance of the objects
         self.reward_manager = RewardManager(self)
+     #   self.emulator_manager = EmulatorManager(self)
+        self.emulator_manager = EmulatorManager(config)
+
 
         self.essential_map_locations = {
             v:i for i,v in enumerate([
@@ -178,7 +188,9 @@ class RedGymEnv(Env):
     
     def _get_obs(self):
         
-        screen = self.render()
+        #screen = self.render()
+        screen = self.emulator_manager.get_screen_pixels()
+                   
 
         self.update_recent_screens(screen)
         
@@ -203,8 +215,12 @@ class RedGymEnv(Env):
 
         if self.save_video and self.step_count == 0:
             self.start_video()
+        
 
-        self.run_action_on_emulator(action)
+        render_screen = not self.headless
+        self.emulator_manager.run_action(action, self.act_freq, render_screen)
+
+        #self.run_action_on_emulator(action)
         self.append_agent_stats(action)
 
         self.update_recent_actions(action)
@@ -217,11 +233,11 @@ class RedGymEnv(Env):
 
         self.party_size = self.read_m(0xD163)
 
-        new_reward = self.reward_manager.compute_reward()
+        
         self.last_health = self.read_hp_fraction()
 
         self.update_map_progress()
-
+        new_reward = self.reward_manager.compute_reward()
         step_limit_reached = self.check_if_done()
 
         obs = self._get_obs()
@@ -458,7 +474,8 @@ class RedGymEnv(Env):
 
     def read_m(self, addr):
         #return self.pyboy.get_memory_value(addr)
-        return self.pyboy.memory[addr]
+        return self.emulator_manager.read_memory(addr)
+       #return self.pyboy.memory[addr]
 
     def read_bit(self, addr, bit: int) -> bool:
         # add padding so zero will read '0b100000000' instead of '0b0'
